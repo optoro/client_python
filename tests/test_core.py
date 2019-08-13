@@ -664,6 +664,9 @@ class TestCollectorRegistry(unittest.TestCase):
         # The name of the histogram itself isn't taken.
         Gauge('h', 'help', registry=registry)
 
+        Info('i', 'help', registry=registry)
+        self.assertRaises(ValueError, Gauge, 'i_info', 'help', registry=registry)
+
     def test_unregister_works(self):
         registry = CollectorRegistry()
         s = Summary('s', 'help', registry=registry)
@@ -695,6 +698,22 @@ class TestCollectorRegistry(unittest.TestCase):
         m = Metric('s', 'help', 'summary')
         m.samples = [Sample('s_sum', {}, 7)]
         self.assertEquals([m], registry.restricted_registry(['s_sum']).collect())
+
+    def test_target_info_injected(self):
+        registry = CollectorRegistry(target_info={'foo': 'bar'})
+        self.assertEqual(1, registry.get_sample_value('target_info', {'foo': 'bar'}))
+
+    def test_target_info_duplicate_detected(self):
+        registry = CollectorRegistry(target_info={'foo': 'bar'})
+        self.assertRaises(ValueError, Info, 'target', 'help', registry=registry)
+
+        registry.set_target_info({})
+        i = Info('target', 'help', registry=registry)
+        registry.set_target_info({})
+        self.assertRaises(ValueError, Info, 'target', 'help', registry=registry)
+        self.assertRaises(ValueError, registry.set_target_info, {'foo': 'bar'})
+        registry.unregister(i)
+        registry.set_target_info({'foo': 'bar'})
 
 
 if __name__ == '__main__':
